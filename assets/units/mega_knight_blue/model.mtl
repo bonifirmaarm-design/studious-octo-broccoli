@@ -1,0 +1,10 @@
+newmtl mega_knight_blue
+Kd 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ns 50.0
+Ni 1.500000
+d 1.000000
+illum 2
+Pr 0.500000
+Pm 0.000000
+map_Kd albedo.jpg
