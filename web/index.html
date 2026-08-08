@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mega Knight — Royal Arena 3D</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --bg: #10131c;
+    --panel: rgba(16, 20, 32, 0.82);
+    --line: rgba(255, 255, 255, 0.14);
+    --text: #eef2ff;
+    --muted: #9aa4c4;
+    --blue: #3d7bff;
+    --red: #ff4a52;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 14px/1.45 "Segoe UI", system-ui, -apple-system, sans-serif; overflow: hidden; }
+  canvas { display: block; }
+
+  #ui { position: fixed; right: 14px; top: 14px; width: 250px; padding: 14px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    backdrop-filter: blur(10px); z-index: 10; max-height: calc(100vh - 28px); overflow: auto; }
+  h1 { margin: 0 0 2px; font-size: 15px; letter-spacing: .3px; }
+  .sub { margin: 0 0 12px; color: var(--muted); font-size: 12px; }
+  .group { margin-bottom: 12px; }
+  .group > label { display: block; font-size: 11px; text-transform: uppercase;
+    letter-spacing: .8px; color: var(--muted); margin-bottom: 6px; }
+  .row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  button { appearance: none; border: 1px solid var(--line); background: rgba(255,255,255,.06);
+    color: var(--text); padding: 7px 4px; border-radius: 8px; cursor: pointer;
+    font-size: 12px; transition: background .12s, border-color .12s; }
+  button:hover { background: rgba(255,255,255,.14); }
+  button.wide { grid-column: 1 / -1; padding: 9px; font-weight: 600; }
+  button.blue { border-color: rgba(61,123,255,.6); background: rgba(61,123,255,.18); }
+  button.red { border-color: rgba(255,74,82,.6); background: rgba(255,74,82,.18); }
+  .hint { color: var(--muted); font-size: 11px; margin: 10px 0 0; }
+  #loading { position: fixed; inset: 0; display: grid; place-items: center;
+    background: var(--bg); z-index: 50; font-size: 13px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div id="loading">Загрузка арены…</div>
+
+<div id="ui">
+  <h1>Mega Knight — Royal Arena</h1>
+  <p class="sub">Два Мега-Найта на Арене 7</p>
+
+  <div class="group">
+    <label>Синий</label>
+    <div class="row" id="blue-row"></div>
+  </div>
+
+  <div class="group">
+    <label>Красный</label>
+    <div class="row" id="red-row"></div>
+  </div>
+
+  <div class="group">
+    <label>Сцена</label>
+    <div class="row">
+      <button class="wide" id="fight">⚔ Бой (прыжок + удар)</button>
+      <button id="cam-wide">Обзор</button>
+      <button id="cam-close">Близко</button>
+      <button id="cam-top">Сверху</button>
+    </div>
+  </div>
+
+  <p class="hint">ЛКМ — вращать, колесо — зум, ПКМ — панорама.</p>
+</div>
+
+<script type="importmap">
+{ "imports": {
+    "three": "./vendor/three/three.module.js",
+    "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// --- scene ---------------------------------------------------------------
+
+const FIELD_Y = 2.33;        // height of the grass plane inside the arena
+const KNIGHT_HEIGHT = 2.6;   // metres; the models are exported 1 unit tall
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setSize(innerWidth, innerHeight);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0e1220);
+scene.fog = new THREE.Fog(0x0e1220, 60, 190);
+
+const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.1, 800);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.target.set(1, FIELD_Y + 1.5, 0);
+
+scene.add(new THREE.HemisphereLight(0xbfd4ff, 0x2b2f3d, 1.5));
+
+const sun = new THREE.DirectionalLight(0xfff2d8, 2.6);
+sun.position.set(26, 40, 20);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.near = 5;
+sun.shadow.camera.far = 130;
+const extent = 26;
+Object.assign(sun.shadow.camera, { left: -extent, right: extent, top: extent, bottom: -extent });
+sun.shadow.bias = -0.0012;
+scene.add(sun);
+scene.add(sun.target);
+
+const rim = new THREE.DirectionalLight(0x86b6ff, 0.8);
+rim.position.set(-20, 14, -24);
+scene.add(rim);
+
+// --- fighters ------------------------------------------------------------
+
+const CLIPS = [
+  ['Idle', 'Стойка'], ['Walk', 'Ходьба'], ['Punch', 'Удар'],
+  ['Smash', 'Смэш'], ['Jump', 'Прыжок'], ['Hit', 'Получил'],
+];
+const LOOPING = new Set(['Idle', 'Walk']);
+
+class Knight {
+  constructor(gltf, { position, facing, height }) {
+    this.root = new THREE.Group();
+    this.root.position.copy(position);
+    this.root.rotation.y = facing;
+    this.root.scale.setScalar(height);
+
+    this.model = gltf.scene;
+    this.model.traverse(o => {
+      if (o.isMesh || o.isSkinnedMesh) {
+        o.castShadow = true;
+        o.receiveShadow = true;
+        o.frustumCulled = false;   // skinned bounds move well outside the rest box
+      }
+    });
+    this.root.add(this.model);
+
+    this.mixer = new THREE.AnimationMixer(this.model);
+    this.actions = new Map();
+    for (const clip of gltf.animations) {
+      const action = this.mixer.clipAction(clip);
+      if (!LOOPING.has(clip.name)) {
+        action.setLoop(THREE.LoopOnce, 1);
+        action.clampWhenFinished = true;
+      }
+      this.actions.set(clip.name, action);
+    }
+    this.current = null;
+    this.play('Idle');
+
+    // A one-shot clip hands control back to Idle when it finishes.
+    this.mixer.addEventListener('finished', e => {
+      if (e.action === this.current && !LOOPING.has(this.currentName)) this.play('Idle', 0.25);
+    });
+  }
+
+  play(name, fade = 0.2) {
+    const next = this.actions.get(name);
+    if (!next) return;
+    if (this.current === next && LOOPING.has(name)) return;
+    next.reset();
+    next.setEffectiveWeight(1);
+    if (this.current && this.current !== next) this.current.fadeOut(fade);
+    next.fadeIn(fade).play();
+    this.current = next;
+    this.currentName = name;
+  }
+
+  update(dt) { this.mixer.update(dt); }
+}
+
+// --- cameras -------------------------------------------------------------
+
+// The seating decks fill z from about 10 to 17 metres out and stand 8 metres
+// tall, so any camera near the touchline has to clear them from above rather
+// than sit inside them.
+const CAMERAS = {
+  wide:  { pos: [-30, 26, 34], target: [0, FIELD_Y + 2, 0] },
+  close: { pos: [-3, 12, 15],  target: [0.5, FIELD_Y + 1.2, 0] },
+  top:   { pos: [0, 34, 0.01], target: [0, FIELD_Y, 0] },
+};
+function setCamera(name) {
+  const view = CAMERAS[name];
+  camera.position.set(...view.pos);
+  controls.target.set(...view.target);
+  controls.update();
+}
+document.getElementById('cam-wide').onclick = () => setCamera('wide');
+document.getElementById('cam-close').onclick = () => setCamera('close');
+document.getElementById('cam-top').onclick = () => setCamera('top');
+
+// --- load ----------------------------------------------------------------
+
+const loader = new GLTFLoader();
+const load = url => new Promise((res, rej) => loader.load(url, res, undefined, rej));
+const status = document.getElementById('loading');
+
+let blue, red;
+
+try {
+  status.textContent = 'Загрузка арены…';
+  const arenaGltf = await load('./assets/arena.glb');
+  const arena = arenaGltf.scene;
+  arena.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  scene.add(arena);
+
+  status.textContent = 'Загрузка Мега-Найтов…';
+  const [blueGltf, redGltf] = await Promise.all([
+    load('./assets/knight_blue.glb'),
+    load('./assets/knight_red.glb'),
+  ]);
+
+  // The knights start at opposite ends of the field, facing each other.
+  // Each model faces +Z, so a yaw of ±90° turns them along the field's X axis.
+  blue = new Knight(blueGltf, {
+    position: new THREE.Vector3(-5, FIELD_Y, 0.5),
+    facing: Math.PI / 2,
+    height: KNIGHT_HEIGHT,
+  });
+  red = new Knight(redGltf, {
+    position: new THREE.Vector3(4.5, FIELD_Y, -0.5),
+    facing: -Math.PI / 2,
+    height: KNIGHT_HEIGHT,
+  });
+  scene.add(blue.root, red.root);
+
+  sun.target.position.set(0, FIELD_Y, 0);
+  setCamera('wide');
+  status.remove();
+} catch (err) {
+  status.textContent = 'Не удалось загрузить модели: ' + err.message;
+  throw err;
+}
+
+// --- ui ------------------------------------------------------------------
+
+function buildRow(id, knight, cls) {
+  const row = document.getElementById(id);
+  for (const [clip, label] of CLIPS) {
+    const button = document.createElement('button');
+    button.textContent = label;
+    button.className = cls;
+    button.onclick = () => knight.play(clip, 0.15);
+    row.appendChild(button);
+  }
+}
+buildRow('blue-row', blue, 'blue');
+buildRow('red-row', red, 'red');
+
+// A scripted exchange: blue leaps in, lands, punches; red takes it.
+const wait = ms => new Promise(r => setTimeout(r, ms));
+let fighting = false;
+document.getElementById('fight').onclick = async () => {
+  if (fighting) return;
+  fighting = true;
+  setCamera('close');
+
+  blue.play('Jump', 0.12);
+  await wait(1300);          // land
+  red.play('Hit', 0.08);     // the shockwave staggers the defender
+  await wait(900);
+
+  blue.play('Punch', 0.1);
+  await wait(430);           // impact frame of the punch
+  red.play('Hit', 0.06);
+  await wait(900);
+
+  blue.play('Smash', 0.1);
+  await wait(560);
+  red.play('Hit', 0.06);
+  await wait(1200);
+
+  blue.play('Idle', 0.3);
+  red.play('Idle', 0.3);
+  fighting = false;
+};
+
+// --- loop ----------------------------------------------------------------
+
+// Handy from the browser console, and used by tools/shoot_scene.py to park a
+// clip on an exact frame instead of waiting for it to play out.
+window.demo = { THREE, scene, camera, controls, blue, red, setCamera,
+  pose(knight, clip, t) {
+    const k = knight === 'red' ? red : blue;
+    k.play(clip, 0);
+    k.mixer.setTime(0);
+    k.mixer.setTime(t);
+  } };
+
+const clock = new THREE.Clock();
+renderer.setAnimationLoop(() => {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  blue.update(dt);
+  red.update(dt);
+  controls.update();
+  renderer.render(scene, camera);
+});
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>
