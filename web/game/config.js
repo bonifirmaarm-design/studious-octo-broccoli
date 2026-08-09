@@ -7,7 +7,7 @@
 
 // Bumped whenever the models are rebuilt. It is appended to every asset URL
 // so a browser that cached the previous 24 MB arena cannot serve it back.
-export const ASSET_VERSION = '9';
+export const ASSET_VERSION = '10';
 
 export const FIELD = {
   y: 2.33,

@@ -517,7 +517,6 @@ def rider_idle(base=None):
     clip.key(0.0, rest(base))
     breathe = rest(base, root_pos=(0, 0.02, 0))
     side(breathe, "Mount", 2)
-    side(breathe, "MountHead", -4)
     side(breathe, "Spine", -2)
     sym(breathe, "UpperArm", forward=4, out=-4)
     clip.key(0.85, breathe)
@@ -531,14 +530,9 @@ def rider_gallop(base=None):
     def pose(phase, lift, pitch):
         p = rest(base, root_pos=(0, lift, 0))
         side(p, "Mount", pitch)
-        side(p, "MountHead", -pitch * 1.4)
-        side(p, "MountTail", -pitch * 0.8)
         side(p, "Spine", pitch * 0.5)
         side(p, "Chest", -pitch * 0.3)
         side(p, "Head", -pitch * 0.4)
-        for tag, s in (("F", 1.0), ("B", -1.0)):
-            side(p, f"Hoof{tag}.R", 34 * phase * s)
-            side(p, f"Hoof{tag}.L", -34 * phase * s)
         sym(p, "UpperArm", forward=6 * phase, out=-6)
         return p
 
@@ -560,7 +554,7 @@ def rider_attack(base=None):
     side(wind, "Head", 0, -8)
     side(wind, "Shoulder.R", -30, 0, 22)
     side(wind, "UpperArm.R", -56, 0, 34)
-    side(wind, "Mount", -4)
+    side(wind, "Mount", -5)
     clip.key(0.28, wind, "in")
 
     hit = rest(base, root_scale=(1.02, 0.98, 1.02))
@@ -589,7 +583,6 @@ def rider_hit(base=None):
     side(flinch, "Chest", -12)
     side(flinch, "Head", -20)
     side(flinch, "Mount", -8)
-    side(flinch, "MountHead", 10)
     clip.key(0.10, flinch, "snap")
     clip.key(0.55, rest(base), "out")
     return clip
@@ -602,17 +595,12 @@ def rider_die(base=None):
 
     stumble = rest(base, root_pos=(0, -0.08, 0))
     side(stumble, "Mount", 14)
-    side(stumble, "MountHead", -18)
     side(stumble, "Spine", -12)
     side(stumble, "Head", -14)
     clip.key(0.26, stumble, "out")
 
     down = rest(base, root_pos=(0, -0.22, 0), root_scale=(1.05, 0.88, 1.05))
     side(down, "Mount", 22)
-    side(down, "MountHead", -26)
-    side(down, "MountTail", 16)
-    sym(down, "HoofF", forward=-40)
-    sym(down, "HoofB", forward=34)
     side(down, "Spine", 26)
     side(down, "Chest", 20)
     side(down, "Head", 24)

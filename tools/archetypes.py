@@ -114,50 +114,41 @@ def _mass_above(positions, z_value, y_threshold):
 
 
 def rider(positions):
-    """A mount plus a rider: the mount bobs, the rider's arms swing."""
-    height = positions[:, 1].max()
-    z_min, z_max = positions[:, 2].min(), positions[:, 2].max()
-    depth = z_max - z_min
-    span = np.abs(positions[:, 0]).max()
+    """A mount carrying a rider.
 
-    # The mount is the lower half, the rider the upper half.
+    The mount is ONE rigid bone. Giving it separate head, tail and hoof bones
+    meant aiming bones almost along the frame's reference axis -- the animal
+    kept rolling onto its back and its head ended up facing sideways. A pig
+    that reads correctly beats a pig with a head bob, so the whole animal now
+    rides on `Mount` and only the rider above the saddle is articulated.
+    """
+    height = positions[:, 1].max()
     saddle_y = 0.46 * height
+
     widths, edges = _profile_pair(positions)
     arm_band = int(np.argmax(widths[len(widths) // 2:])) + len(widths) // 2
     arm_y = float((edges[arm_band] + edges[arm_band + 1]) / 2)
     arm_span = float(widths[arm_band])
 
-    # As above: the mount faces +Z like every other scan here.
-    sign = 1.0
-
-    # Hips is listed FIRST among Mount's children on purpose: a joint's rest
-    # orientation aims along its first child, and pointing Mount at MountHead
-    # put the bone almost parallel to the frame's reference axis, which throws
-    # the whole mount into a degenerate roll -- the pig ended up on its back.
-    # Aiming Mount straight up at the saddle keeps the frame well conditioned.
     joints = [
         ("Root", None, [0.0, 0.0, 0.0]),
-        ("Mount", "Root", [0.0, 0.30 * height, 0.0]),
-        ("Hips", "Mount", [0.0, saddle_y, -sign * 0.03 * depth]),
-        ("MountHead", "Mount", [0.0, 0.34 * height, sign * 0.34 * depth]),
-        ("MountTail", "Mount", [0.0, 0.32 * height, -sign * 0.34 * depth]),
+        ("Mount", "Root", [0.0, 0.22 * height, 0.0]),
+        ("Hips", "Mount", [0.0, saddle_y, 0.0]),
         ("Spine", "Hips", [0.0, saddle_y + 0.09 * height, 0.0]),
         ("Chest", "Spine", [0.0, saddle_y + 0.20 * height, 0.0]),
         ("Head", "Chest", [0.0, 0.90 * height, 0.0]),
     ]
-    shoulder = np.array([0.30 * arm_span, arm_y, 0.0])
-    hand = np.array([0.92 * arm_span, arm_y, 0.03])
-    for side, s in (("L", -1.0), ("R", 1.0)):
+    shoulder = [0.30 * arm_span, arm_y, 0.0]
+    hand = [0.92 * arm_span, arm_y, 0.03]
+    for side_name, s in (("L", -1.0), ("R", 1.0)):
         joints += [
-            (f"Shoulder.{side}", "Chest", [s * shoulder[0], shoulder[1], shoulder[2]]),
-            (f"UpperArm.{side}", f"Shoulder.{side}",
+            (f"Shoulder.{side_name}", "Chest", [s * shoulder[0], shoulder[1], 0.0]),
+            (f"UpperArm.{side_name}", f"Shoulder.{side_name}",
              [s * _lerp(shoulder[0], hand[0], 0.3), _lerp(shoulder[1], hand[1], 0.3), 0.01]),
-            (f"Hand.{side}", f"UpperArm.{side}", [s * hand[0], hand[1], hand[2]]),
+            (f"Hand.{side_name}", f"UpperArm.{side_name}", [s * hand[0], hand[1], hand[2]]),
         ]
-    for side, s in (("L", -1.0), ("R", 1.0)):
-        for tag, z in (("F", sign * 0.24 * depth), ("B", -sign * 0.24 * depth)):
-            joints.append((f"Hoof{tag}.{side}", "Mount", [s * 0.42 * span, 0.06 * height, z]))
-    return joints, {"height": 1.0, "arm_y": arm_y, "span": float(span)}
+    return joints, {"height": 1.0, "arm_y": arm_y, "arm_span": arm_span,
+                    "shoulder_y": arm_y, "shoulder_x": shoulder[0], "hand_y": arm_y}
 
 
 def _mass_below(positions, z_value, y_threshold):
