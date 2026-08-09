@@ -4,8 +4,8 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
-import { FIELD, KING_MODELS, TOWER_ARCHERS, TOWER_CREW, TOWER_RADIUS, UNITS,
-         groundHeight } from './config.js';
+import { ASSET_VERSION, FIELD, KING_MODELS, TOWER_ARCHERS, TOWER_CREW, TOWER_RADIUS,
+         UNITS, groundHeight } from './config.js';
 
 const loader = new GLTFLoader();
 const load = url => new Promise((res, rej) => loader.load(url, res, undefined, rej));
@@ -43,7 +43,7 @@ export class View {
   async loadUnits(keys, onProgress) {
     let done = 0;
     for (const key of keys) {
-      const gltf = await load(`./assets/units/${key}.glb`);
+      const gltf = await load(`./assets/units/${key}.glb?v=${ASSET_VERSION}`);
       this.prototypes.set(key, gltf);
       onProgress?.(++done, keys.length, key);
     }
@@ -198,7 +198,7 @@ export class View {
       if (!view) continue;
       this.setBar(view.bar, tower.hp / tower.maxHp);
       view.bar.visible = !tower.dead;
-      view.bar.quaternion.copy(camera.quaternion);
+      this.faceCamera(view.bar, camera);
 
       // A destroyed tower leaves the field, the way it does in the original.
       if (tower.dead && !view.collapsed) {
@@ -246,6 +246,13 @@ export class View {
   }
 
   // --------------------------------------------------------------- units
+
+  /** Keep a bar the same size on screen however close the camera gets. */
+  faceCamera(bar, camera, base = 1) {
+    bar.quaternion.copy(camera.quaternion);
+    const distance = camera.position.distanceTo(bar.position);
+    bar.scale.setScalar(base * Math.min(1, Math.max(0.25, distance / 22)));
+  }
 
   syncUnits(units, camera, dt) {
     const seen = new Set();
@@ -332,9 +339,10 @@ export class View {
       actor.ring.visible = !unit.dead && !unit.flying;
       actor.ring.position.set(unit.x, ground + 0.05, unit.z);
 
-      actor.bar.visible = !unit.dead;
+      // Only wounded units carry a bar; a field of full green bars is noise.
+      actor.bar.visible = !unit.dead && unit.hp < unit.maxHp;
       actor.bar.position.set(unit.x, y + unit.spec.height * 1.08, unit.z);
-      actor.bar.quaternion.copy(camera.quaternion);
+      this.faceCamera(actor.bar, camera);
       this.setBar(actor.bar, unit.hp / unit.maxHp);
     }
 

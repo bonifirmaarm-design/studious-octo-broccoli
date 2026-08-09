@@ -1,6 +1,6 @@
 // HUD: elixir, the hand of cards, crowns, clock, chest and the result screen.
 
-import { CARDS, MATCH, RARITY_COLORS } from './config.js';
+import { ASSET_VERSION, CARDS, MATCH, RARITY_COLORS } from './config.js';
 
 export class HUD {
   constructor(root, { onSelect, onChest }) {
@@ -57,7 +57,7 @@ export class HUD {
     node.className = 'card';
     node.style.setProperty('--rarity', RARITY_COLORS[card.rarity] || '#9fb4d8');
     node.innerHTML = `
-      <img alt="" src="./assets/cards/${card.art}.png" loading="lazy">
+      <img alt="" src="./assets/cards/${card.art}.png?v=${ASSET_VERSION}" loading="lazy">
       <span class="cost">${card.cost}</span>
       <span class="name">${card.name}</span>`;
     node.onclick = () => this.select(card);
@@ -73,7 +73,7 @@ export class HUD {
       this.hand.appendChild(node);
     }
     this.nextMini.innerHTML = next
-      ? `<img alt="" src="./assets/cards/${next.art}.png"><span>${next.cost}</span>` : '';
+      ? `<img alt="" src="./assets/cards/${next.art}.png?v=${ASSET_VERSION}"><span>${next.cost}</span>` : '';
     if (this.selected && !hand.includes(this.selected)) this.selected = null;
     this.refreshSelection();
   }

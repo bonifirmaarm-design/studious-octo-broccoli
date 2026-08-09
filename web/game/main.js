@@ -4,7 +4,8 @@ import * as THREE from 'three';
 import { Battle, findCard } from './battle.js';
 import { Bot, CARD_SPECS } from './ai.js';
 import { CameraRig, VIEWS } from './camera.js';
-import { CARDS, FIELD, KING_MODELS, TOWER_ARCHERS, UNITS, canDeploy } from './config.js';
+import { ASSET_VERSION, CARDS, FIELD, KING_MODELS, TOWER_ARCHERS, UNITS,
+         canDeploy } from './config.js';
 import { HUD } from './ui.js';
 import { View } from './view.js';
 
@@ -77,7 +78,7 @@ const modelKeys = [...new Set([
 ])];
 
 status.textContent = 'Загрузка арены…';
-await view.loadArena('./assets/arena.glb');
+await view.loadArena(`./assets/arena.glb?v=${ASSET_VERSION}`);
 await view.loadUnits(modelKeys, (done, total, key) => {
   status.textContent = `Модели: ${done}/${total} — ${key}`;
   bar.style.width = `${(done / total) * 100}%`;
@@ -199,8 +200,18 @@ document.getElementById('boot').remove();
 
 const clock = new THREE.Clock();
 let elapsed = 0;
+let speed = 1;
+for (const button of document.querySelectorAll('[data-speed]')) {
+  button.onclick = () => {
+    speed = Number(button.dataset.speed);
+    for (const other of document.querySelectorAll('[data-speed]')) {
+      other.classList.toggle('on', other === button);
+    }
+  };
+}
+
 renderer.setAnimationLoop(() => {
-  const dt = Math.min(clock.getDelta(), 0.05);
+  const dt = Math.min(clock.getDelta(), 0.05) * speed;
   elapsed += dt;
 
   battle.update(dt);
@@ -226,4 +237,4 @@ addEventListener('resize', () => {
 });
 
 // Exposed for debugging and for the screenshot tool.
-window.game = { battle, bot, view, rig, camera, scene, hud, hand, queue, Bot, playable };
+window.game = { THREE, battle, bot, view, rig, camera, scene, hud, hand, queue, Bot, playable };

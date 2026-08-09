@@ -53,20 +53,51 @@ def measure(positions, arms_low=False):
     shoulder_x = min(torso_half * 0.85, arm_span * 0.42)
 
     # --- legs ------------------------------------------------------------
-    crotch = None
-    for i in range(min(bands // 2, int(bands * 0.55)), 0, -1):
-        if len(slice_clusters(positions, edges[i], edges[i + 1])) >= 2:
-            crotch = centres[i]
-            break
-    if crotch is None:
-        crotch = 0.42 * (0.75 if not arms_low else 1.0)
+    # Walk UP from the feet while the silhouette still shows two legs
+    # straddling the centre line; the crotch is where they merge. Scanning
+    # downwards from mid-body instead put the Mega Knight's hips at 0.51 --
+    # its fists split the slice far above the legs -- so walking drove the
+    # whole torso.
+    def leg_pair(y0, y1):
+        clusters = slice_clusters(positions, y0, y1)
+        if len(clusters) < 2:
+            return None
+        pair = sorted(clusters, key=lambda c: abs(c["centre"][0]))[:2]
+        pair.sort(key=lambda c: c["centre"][0])
+        left, right = pair[0]["centre"][0], pair[1]["centre"][0]
+        if not (left < 0 < right):
+            return None
+        if abs(abs(left) - abs(right)) > 0.10:      # must straddle evenly
+            return None
+        if max(abs(left), abs(right)) > 0.35:       # legs hug the centre line
+            return None
+        return pair
 
-    ankle = slice_clusters(positions, edges[0], edges[2])
-    if len(ankle) >= 2:
-        foot_x = float(np.mean([abs(ankle[0]["centre"][0]), abs(ankle[-1]["centre"][0])]))
-        foot_z = float(np.mean([ankle[0]["centre"][2], ankle[-1]["centre"][2]]))
+    crotch, ankle_pair = None, None
+    for i in range(1, int(bands * 0.55)):
+        pair = leg_pair(edges[i], edges[i + 1])
+        if pair:
+            crotch = centres[i]
+            if ankle_pair is None:
+                ankle_pair = pair
+        elif crotch is not None:
+            break                                    # the legs have merged
+
+    # These are all stylised humanoids with near-identical proportions (their
+    # silhouette profiles overlap closely), so a reading outside a sane band is
+    # the silhouette lying, not an unusual body: the Mega Knights' fists hang
+    # past their knees and hide the legs completely, and the kings' robes reach
+    # the floor so the split closes just above the boots.
+    if arms_low or crotch is None:
+        crotch = 0.26 if arms_low else 0.32
     else:
-        foot_x, foot_z = max(0.06, torso_half * 0.45), 0.0
+        crotch = float(np.clip(crotch, 0.22, 0.38))
+
+    if ankle_pair:
+        foot_x = float(np.mean([abs(c["centre"][0]) for c in ankle_pair]))
+        foot_z = float(np.mean([c["centre"][2] for c in ankle_pair]))
+    else:
+        foot_x, foot_z = max(0.06, torso_half * 0.42), 0.0
 
     # --- head ------------------------------------------------------------
     # Above the shoulders the body narrows into the neck and flares into the

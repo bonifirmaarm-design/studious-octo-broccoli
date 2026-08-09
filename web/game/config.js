@@ -5,6 +5,10 @@
 // river running along z at the field's mid-line and two bridges across it.
 // Lanes run along x: blue defends -x, red defends +x.
 
+// Bumped whenever the models are rebuilt. It is appended to every asset URL
+// so a browser that cached the previous 24 MB arena cannot serve it back.
+export const ASSET_VERSION = '7';
+
 export const FIELD = {
   y: 2.33,
   xMin: -15.7, xMax: 17.8,
