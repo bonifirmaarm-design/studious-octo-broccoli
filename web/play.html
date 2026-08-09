@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Royal Clash — Арена 7</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --bg: #0d1120;
+    --panel: rgba(14, 19, 34, 0.86);
+    --line: rgba(255, 255, 255, 0.14);
+    --text: #eef3ff;
+    --muted: #8f9dc2;
+    --blue: #4a86ff;
+    --red: #ff4d4d;
+    --elixir: #d24bff;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg);
+    color: var(--text); font: 14px/1.4 "Segoe UI", system-ui, sans-serif;
+    user-select: none; -webkit-user-select: none; }
+  #stage canvas { display: block; }
+
+  /* ---------------------------------------------------------------- boot */
+  #boot { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center;
+    background: radial-gradient(circle at 50% 35%, #1b2542, #0b0e19 70%); }
+  #boot .inner { text-align: center; width: min(420px, 80vw); }
+  #boot h1 { margin: 0 0 6px; font-size: 26px; letter-spacing: 1px; }
+  #boot p { margin: 0 0 18px; color: var(--muted); }
+  #loading { color: var(--muted); font-size: 13px; margin-bottom: 10px; }
+  #loadtrack { height: 6px; background: rgba(255,255,255,.1); border-radius: 99px; overflow: hidden; }
+  #loadbar { height: 100%; width: 0; background: linear-gradient(90deg, var(--blue), var(--elixir));
+    transition: width .2s; }
+
+  /* ------------------------------------------------------------------ hud */
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 20; }
+  #hud > * { pointer-events: auto; }
+
+  #topbar { position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 16px; padding: 8px 16px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    backdrop-filter: blur(8px); }
+  .crowns { display: flex; align-items: center; gap: 8px; font-size: 20px; font-weight: 700; }
+  .tag { font-size: 10px; letter-spacing: 1px; padding: 2px 7px; border-radius: 5px; font-weight: 700; }
+  .tag.blue { background: rgba(74,134,255,.25); color: #9dc0ff; }
+  .tag.red { background: rgba(255,77,77,.25); color: #ffa8a8; }
+  #clock { font-variant-numeric: tabular-nums; font-size: 20px; font-weight: 600; min-width: 56px;
+    text-align: center; }
+  #clock.overtime { color: #ffd24a; }
+
+  #bottombar { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
+    display: flex; align-items: flex-end; gap: 12px; }
+
+  #hand { display: flex; gap: 8px; }
+  .card { position: relative; width: 92px; height: 118px; padding: 0; cursor: pointer;
+    border: 2px solid var(--rarity, #9fb4d8); border-radius: 12px; overflow: hidden;
+    background: linear-gradient(180deg, rgba(30,40,66,.95), rgba(16,21,38,.95));
+    color: var(--text); transition: transform .1s, box-shadow .12s, filter .12s; }
+  .card img { width: 100%; height: 82px; object-fit: contain; display: block; margin-top: 4px; }
+  .card .cost { position: absolute; left: 5px; top: 5px; width: 22px; height: 22px;
+    border-radius: 50%; background: var(--elixir); color: #fff; font-weight: 700; font-size: 13px;
+    display: grid; place-items: center; box-shadow: 0 0 0 2px rgba(0,0,0,.35); }
+  .card .name { position: absolute; left: 0; right: 0; bottom: 0; padding: 3px 4px;
+    font-size: 10px; text-align: center; background: rgba(8,11,20,.82);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card:hover { transform: translateY(-4px); }
+  .card.selected { box-shadow: 0 0 0 3px var(--rarity), 0 6px 22px rgba(0,0,0,.5);
+    transform: translateY(-8px); }
+  .card.poor { filter: grayscale(.75) brightness(.65); }
+
+  #nextcard { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+  #nextcard .label { font-size: 10px; color: var(--muted); letter-spacing: .6px; }
+  .mini { position: relative; width: 52px; height: 62px; border-radius: 8px;
+    border: 1px solid var(--line); background: rgba(20,26,46,.9); overflow: hidden; }
+  .mini img { width: 100%; height: 100%; object-fit: contain; }
+  .mini span { position: absolute; left: 3px; top: 3px; width: 17px; height: 17px;
+    border-radius: 50%; background: var(--elixir); font-size: 11px; font-weight: 700;
+    display: grid; place-items: center; }
+
+  #elixir { position: relative; width: 210px; height: 26px; border-radius: 8px;
+    border: 1px solid var(--line); background: rgba(10,14,26,.9); overflow: hidden; }
+  #elixir-fill { position: absolute; inset: 0; width: 50%;
+    background: linear-gradient(90deg, #a531ff, var(--elixir)); transition: width .1s linear; }
+  #elixir-pips { position: absolute; inset: 0; display: grid;
+    grid-template-columns: repeat(10, 1fr); }
+  #elixir-pips i { border-right: 1px solid rgba(0,0,0,.35); }
+  #elixir-value { position: absolute; right: 7px; top: 3px; font-weight: 700; font-size: 14px;
+    text-shadow: 0 1px 3px rgba(0,0,0,.7); }
+
+  button { appearance: none; border: 1px solid var(--line); background: rgba(255,255,255,.07);
+    color: var(--text); border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: 12px; }
+  button:hover { background: rgba(255,255,255,.16); }
+  button.on { background: rgba(74,134,255,.32); border-color: rgba(74,134,255,.7); }
+  #chest { font-size: 11px; padding: 5px 6px; }
+
+  #sidebar { position: absolute; right: 12px; top: 12px; display: flex; flex-direction: column;
+    gap: 6px; width: 168px; padding: 10px; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 12px; backdrop-filter: blur(8px); }
+  #sidebar h3 { margin: 0 0 2px; font-size: 11px; letter-spacing: 1px; color: var(--muted);
+    text-transform: uppercase; font-weight: 600; }
+  #flyhint { font-size: 11px; color: var(--muted); line-height: 1.5; }
+  #flyhint b { color: var(--text); }
+
+  #result { position: fixed; inset: 0; z-index: 40; display: grid; place-items: center;
+    background: rgba(6,9,17,.72); backdrop-filter: blur(4px); }
+  #result[hidden] { display: none; }   /* [hidden] loses to display:grid otherwise */
+  #result .panel { text-align: center; padding: 28px 42px; border-radius: 16px;
+    background: var(--panel); border: 1px solid var(--line); }
+  #result h2 { margin: 0 0 6px; font-size: 30px; }
+  #result h2.win { color: #7be495; }
+  #result h2.lose { color: #ff8080; }
+  #result p { margin: 0 0 16px; color: var(--muted); }
+
+  .toast { position: absolute; left: 50%; top: 64px; transform: translateX(-50%);
+    padding: 8px 16px; border-radius: 10px; background: rgba(14,19,34,.95);
+    border: 1px solid var(--line); font-size: 13px; animation: pop 2.6s ease forwards; }
+  @keyframes pop { 0% { opacity: 0; transform: translate(-50%, -8px); }
+    12%, 78% { opacity: 1; transform: translate(-50%, 0); }
+    100% { opacity: 0; transform: translate(-50%, -8px); } }
+</style>
+</head>
+<body>
+
+<div id="boot"><div class="inner">
+  <h1>Royal Clash</h1>
+  <p>Арена 7 · бой против бота</p>
+  <div id="loading">Подготовка…</div>
+  <div id="loadtrack"><div id="loadbar"></div></div>
+</div></div>
+
+<div id="stage"></div>
+
+<div id="hud"></div>
+
+<div id="sidebar">
+  <h3>Камера</h3>
+  <button data-view="battle">Бой</button>
+  <button data-view="blue">Наша сторона</button>
+  <button data-view="red">Сторона врага</button>
+  <button data-view="top">Сверху</button>
+  <button id="fly">🕹 Полёт: выкл (F)</button>
+  <div id="flyhint" hidden>
+    <b>WASD</b> — лететь<br>
+    <b>Space / Shift</b> — вверх / вниз<br>
+    <b>R</b> — ускорение<br>
+    <b>ПКМ</b> — осмотреться<br>
+    <b>Колесо</b> — скорость
+  </div>
+  <h3>Бой</h3>
+  <div style="font-size:11px;color:var(--muted);line-height:1.5">
+    Выбери карту, затем кликни по своей половине поля. В реку и на чужую
+    половину ставить нельзя.
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+    "three": "./vendor/three/three.module.js",
+    "three/addons/": "./vendor/three/addons/"
+} }
+</script>
+<script type="module" src="./game/main.js"></script>
+</body>
+</html>
