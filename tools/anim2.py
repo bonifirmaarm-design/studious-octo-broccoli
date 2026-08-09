@@ -143,10 +143,12 @@ class Clip:
 # the same clips read correctly on both kinds of model.
 
 
-def arm_drop_base(drop_degrees, elbow=14.0):
+def arm_drop_base(drop_degrees, elbow=16.0):
+    """Bring the arms down out of the scanned pose and slightly forward, so
+    they hang beside the body instead of skimming through it."""
     base = {}
-    sym(base, "Shoulder", out=-drop_degrees * 0.35)
-    sym(base, "UpperArm", out=-drop_degrees * 0.65)
+    sym(base, "Shoulder", forward=4, out=-drop_degrees * 0.34)
+    sym(base, "UpperArm", forward=6, out=-drop_degrees * 0.66)
     sym(base, "Elbow", forward=elbow)
     return base
 

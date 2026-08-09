@@ -164,7 +164,8 @@ export class Battle {
     }
     for (const tower of this.towers) {
       if (tower.dead || tower.team !== foe) continue;
-      if (tower.kind === 'king' && !tower.active && this.towersOf(foe).some(t => t.kind === 'crown')) {
+      if (tower.kind === 'king' && !tower.active
+          && this.towersOf(foe).some(t => t.kind === 'crown')) {
         continue;                       // the king is not a valid target yet
       }
       list.push(tower);
@@ -400,9 +401,13 @@ export class Battle {
   }
 
   checkEnd() {
+    // The match runs until one side has lost ALL THREE towers, not just its
+    // king tower.
     for (const team of ['blue', 'red']) {
-      const king = this.towers.find(t => t.team === team && t.kind === 'king');
-      if (king.dead) { this.finish(enemyOf(team), 'Королевская башня разрушена'); return; }
+      if (this.towers.every(t => t.team !== team || t.dead)) {
+        this.finish(enemyOf(team), 'Все три башни разрушены');
+        return;
+      }
     }
     const limit = MATCH.duration + MATCH.overtime;
     if (this.time >= MATCH.duration && this.crowns.blue !== this.crowns.red) {

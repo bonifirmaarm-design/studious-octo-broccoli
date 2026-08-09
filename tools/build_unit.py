@@ -46,7 +46,9 @@ def rest_correction(archetype, landmarks):
     horizontal = max(landmarks["arm_span"] * 0.90 - landmarks["shoulder_x"], 1e-3)
     vertical = landmarks["shoulder_y"] - landmarks["hand_y"]
     current = np.degrees(np.arctan2(vertical, horizontal))
-    drop = float(np.clip(52.0 - current, 0.0, 62.0))
+    # A relaxed arm hangs about 78 degrees below the horizontal. Targeting 52
+    # left the T-posed models with their arms still sticking out sideways.
+    drop = float(np.clip(78.0 - current, 0.0, 88.0))
     return anim2.arm_drop_base(drop)
 
 

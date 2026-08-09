@@ -130,12 +130,17 @@ def rider(positions):
     # As above: the mount faces +Z like every other scan here.
     sign = 1.0
 
+    # Hips is listed FIRST among Mount's children on purpose: a joint's rest
+    # orientation aims along its first child, and pointing Mount at MountHead
+    # put the bone almost parallel to the frame's reference axis, which throws
+    # the whole mount into a degenerate roll -- the pig ended up on its back.
+    # Aiming Mount straight up at the saddle keeps the frame well conditioned.
     joints = [
         ("Root", None, [0.0, 0.0, 0.0]),
         ("Mount", "Root", [0.0, 0.30 * height, 0.0]),
+        ("Hips", "Mount", [0.0, saddle_y, -sign * 0.03 * depth]),
         ("MountHead", "Mount", [0.0, 0.34 * height, sign * 0.34 * depth]),
         ("MountTail", "Mount", [0.0, 0.32 * height, -sign * 0.34 * depth]),
-        ("Hips", "Mount", [0.0, saddle_y, -sign * 0.03 * depth]),
         ("Spine", "Hips", [0.0, saddle_y + 0.09 * height, 0.0]),
         ("Chest", "Spine", [0.0, saddle_y + 0.20 * height, 0.0]),
         ("Head", "Chest", [0.0, 0.90 * height, 0.0]),

@@ -7,7 +7,7 @@
 
 // Bumped whenever the models are rebuilt. It is appended to every asset URL
 // so a browser that cached the previous 24 MB arena cannot serve it back.
-export const ASSET_VERSION = '7';
+export const ASSET_VERSION = '9';
 
 export const FIELD = {
   y: 2.33,
@@ -91,11 +91,11 @@ export const UNITS = {
   },
   mega_knight_trump: {
     model: { blue: 'mega_knight_trump', red: 'mega_knight_trump' },
-    height: 2.9, hp: 5200, damage: 460, hitEvery: 1.5, range: 1.7,
-    speed: 1.7, radius: 1.1, targets: 'both', mass: 9,
-    splash: 2.4,
-    spawnJump: { damage: 380, radius: 3.2 },
-    leap: { range: 8.5, cooldown: 7, damage: 420, radius: 3.0 },
+    height: 2.9, hp: 7200, damage: 620, hitEvery: 1.4, range: 1.8,
+    speed: 1.8, radius: 1.1, targets: 'both', mass: 12,
+    splash: 2.6,
+    spawnJump: { damage: 520, radius: 3.4 },
+    leap: { range: 9.0, cooldown: 6, damage: 560, radius: 3.2 },
     clips: { idle: 'Idle', walk: 'Walk', attack: 'Attack', hit: 'Hit', die: 'Die', jump: 'Jump', smash: 'Smash' },
     attackClip: 'Smash',
   },
@@ -106,17 +106,16 @@ export const UNITS = {
     clips: { idle: 'Idle', walk: 'Walk', attack: 'Attack', hit: 'Hit', die: 'Die' },
   },
   archer: {
-    model: { blue: 'archer_blue', red: 'archer_red' },
+    model: { blue: 'archer_blue', red: 'archer_red' },   // each side fields its own colour
     height: 1.6, hp: 300, damage: 110, hitEvery: 1.2, range: 6.5,
     speed: 2.0, radius: 0.45, targets: 'both', mass: 1,
     projectile: { speed: 14, color: 0xffd9a0 },
     clips: { idle: 'Idle', walk: 'Walk', attack: 'Shoot', hit: 'Hit', die: 'Die' },
   },
   princess: {
-    // Swapped on purpose: within one army the princess then reads as a
-    // different figure from the plain archer, while the team ring and health
-    // bar still say which side she is on.
-    model: { blue: 'archer_red', red: 'archer_blue' },
+    // Team colour wins over telling the two archer cards apart: a blue player
+    // must never see a red princess march out of their own tower.
+    model: { blue: 'archer_blue', red: 'archer_red' },
     height: 1.6, hp: 220, damage: 150, hitEvery: 2.0, range: 10.5,
     speed: 1.9, radius: 0.45, targets: 'both', mass: 1,
     splash: 1.2,
@@ -203,8 +202,9 @@ export function canDeploy(team, x, z, towers) {
     for (const t of towers) {
       if (t.team !== foe || t.kind !== 'crown' || !t.dead) continue;
       const sameLane = (z < FIELD.zMid) === (t.z < FIELD.zMid);
-      const beforeTower = team === 'blue' ? x < t.x : x > t.x;
-      if (sameLane && beforeTower) { ownSide = true; break; }
+      // Up to and including the rubble where the tower stood.
+      const reached = team === 'blue' ? x < t.x + 1.6 : x > t.x - 1.6;
+      if (sameLane && reached) { ownSide = true; break; }
     }
   }
   if (!ownSide) return false;
