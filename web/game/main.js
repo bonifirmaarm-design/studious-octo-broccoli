@@ -95,11 +95,12 @@ let queue = shuffled.slice(4);
 const battle = new Battle(playable, {
   onEvent: event => {
     if (event.type === 'towerDown') {
-      hud.toast(event.tower.team === 'red' ? 'Башня противника разрушена!' : 'Наша башня пала!');
-    }
-    if (event.type === 'kingWoke') {
-      hud.toast(event.tower.team === 'red' ? 'Королевская башня врага проснулась'
-                                           : 'Наша королевская башня проснулась');
+      const ours = event.tower.team === 'blue';
+      const crownsLeft = battle.towers.filter(
+        t => t.team === event.tower.team && t.kind === 'crown' && !t.dead).length;
+      hud.toast(crownsLeft === 0
+        ? (ours ? 'Наша королевская башня открыта!' : 'Королевская башня врага открыта!')
+        : (ours ? 'Наша башня пала!' : 'Башня противника разрушена!'));
     }
     if (event.type === 'over') hud.showResult(event.winner, event.reason);
   },

@@ -7,7 +7,7 @@
 
 // Bumped whenever the models are rebuilt. It is appended to every asset URL
 // so a browser that cached the previous 24 MB arena cannot serve it back.
-export const ASSET_VERSION = '10';
+export const ASSET_VERSION = '11';
 
 export const FIELD = {
   y: 2.33,
@@ -91,11 +91,13 @@ export const UNITS = {
   },
   mega_knight_trump: {
     model: { blue: 'mega_knight_trump', red: 'mega_knight_trump' },
-    height: 2.9, hp: 7200, damage: 620, hitEvery: 1.4, range: 1.8,
-    speed: 1.8, radius: 1.1, targets: 'both', mass: 12,
-    splash: 2.6,
-    spawnJump: { damage: 520, radius: 3.4 },
-    leap: { range: 9.0, cooldown: 6, damage: 560, radius: 3.2 },
+    // Still the strongest card by a clear margin over the 3400/300 Mega
+    // Knight, without being unanswerable.
+    height: 2.9, hp: 5400, damage: 470, hitEvery: 1.5, range: 1.8,
+    speed: 1.75, radius: 1.1, targets: 'both', mass: 10,
+    splash: 2.5,
+    spawnJump: { damage: 400, radius: 3.2 },
+    leap: { range: 8.5, cooldown: 7, damage: 430, radius: 3.0 },
     clips: { idle: 'Idle', walk: 'Walk', attack: 'Attack', hit: 'Hit', die: 'Die', jump: 'Jump', smash: 'Smash' },
     attackClip: 'Smash',
   },

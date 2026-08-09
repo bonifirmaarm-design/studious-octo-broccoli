@@ -23,16 +23,16 @@ export class Tower {
     this.radius = TOWER_RADIUS[spec.kind];
     this.flying = false;
     this.mass = 1000;
-    // The king only wakes up once he is hit or a crown tower falls.
-    this.active = spec.kind !== 'king';
+    // The king defends his tower from the first second. He is not
+    // *reachable* until both princess towers are down -- that part is in
+    // targetsFor -- but he shoots at anything that comes into range.
+    this.active = true;
     this.shotAt = -99;
   }
 
   damage_(amount) {
     if (this.dead) return;
     this.hp -= amount;
-    this.wokeThisHit = !this.active;   // read by Battle to announce it once
-    this.active = true;
     if (this.hp <= 0) { this.hp = 0; this.dead = true; }
   }
 }
@@ -164,9 +164,8 @@ export class Battle {
     }
     for (const tower of this.towers) {
       if (tower.dead || tower.team !== foe) continue;
-      if (tower.kind === 'king' && !tower.active
-          && this.towersOf(foe).some(t => t.kind === 'crown')) {
-        continue;                       // the king is not a valid target yet
+      if (tower.kind === 'king' && this.towersOf(foe).some(t => t.kind === 'crown')) {
+        continue;      // the two princess towers have to go down first
       }
       list.push(tower);
     }
@@ -330,19 +329,9 @@ export class Battle {
   hit(entity, damage) {
     if (!entity || entity.dead) return;
     entity.damage_(entity.isTower ? damage * BUILDING_DAMAGE_SCALE : damage);
-    if (entity.isTower && entity.wokeThisHit) {
-      entity.wokeThisHit = false;
-      if (entity.kind === 'king') this.onEvent({ type: 'kingWoke', tower: entity });
-    }
     if (entity.isTower) {
       if (entity.dead) {
         this.crowns[enemyOf(entity.team)] += entity.kind === 'king' ? 3 : 1;
-        for (const t of this.towers) {
-          if (t.team === entity.team && t.kind === 'king' && !t.active) {
-            t.active = true;
-            this.onEvent({ type: 'kingWoke', tower: t });
-          }
-        }
         this.onEvent({ type: 'towerDown', tower: entity });
       }
     } else if (entity.dead) {
@@ -353,7 +342,6 @@ export class Battle {
   updateTower(tower, dt) {
     if (tower.dead) return;
     tower.cooldown -= dt;
-    if (tower.kind === 'king' && !tower.active) return;
 
     const foe = enemyOf(tower.team);
     let best = null, bestD = Infinity;
