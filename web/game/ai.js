@@ -1,9 +1,9 @@
 // The opponent. Not a solver -- it reacts to pressure, defends its weaker
 // lane and saves elixir for a push, which is enough to make a real match.
 
-import { RIVER, FIELD } from './config.js';
+import { BRIDGES, RIVER, FIELD } from './config.js';
 
-const LANES = [-4.2, 4.0];
+const LANES = BRIDGES.map(b => b.z);
 
 export class Bot {
   constructor(battle, deck, team = 'red', difficulty = 1.0) {

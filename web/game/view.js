@@ -4,7 +4,8 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
-import { FIELD, KING_MODELS, TOWER_ARCHERS, TOWER_CREW, TOWER_RADIUS, UNITS } from './config.js';
+import { FIELD, KING_MODELS, TOWER_ARCHERS, TOWER_CREW, TOWER_RADIUS, UNITS,
+         groundHeight } from './config.js';
 
 const loader = new GLTFLoader();
 const load = url => new Promise((res, rej) => loader.load(url, res, undefined, rej));
@@ -262,7 +263,8 @@ export class View {
         this.play(actor, unit.spec.clips.idle);
       }
 
-      let y = FIELD.y + (unit.flying || 0);
+      const ground = groundHeight(unit.x, unit.z);
+      let y = ground + (unit.flying || 0);
       if (unit.state === 'jumpIn') {
         const t = Math.min(1, unit.stateTime / 0.85);
         y += (1 - t) * (1 - t) * unit.jumpFrom;
@@ -273,6 +275,23 @@ export class View {
 
       actor.root.position.set(unit.x, y, unit.z);
       actor.root.rotation.y = unit.facing;
+
+      // Corpses fade out where they fell instead of sinking through the
+      // ground, which used to swallow the legs while the body still showed.
+      const fadeStart = 0.9, fadeEnd = 1.6;
+      const opacity = unit.dead
+        ? 1 - Math.min(1, Math.max(0, (unit.deathTime - fadeStart) / (fadeEnd - fadeStart)))
+        : 1;
+      if (opacity !== actor.opacity) {
+        actor.opacity = opacity;
+        actor.model.traverse(o => {
+          if (o.isMesh || o.isSkinnedMesh) {
+            o.material.transparent = opacity < 1;
+            o.material.opacity = opacity;
+            o.material.depthWrite = opacity > 0.6;
+          }
+        });
+      }
 
       const clips = unit.spec.clips;
       if (unit.dead) {
@@ -311,7 +330,7 @@ export class View {
       });
 
       actor.ring.visible = !unit.dead && !unit.flying;
-      actor.ring.position.set(unit.x, FIELD.y + 0.05, unit.z);
+      actor.ring.position.set(unit.x, ground + 0.05, unit.z);
 
       actor.bar.visible = !unit.dead;
       actor.bar.position.set(unit.x, y + unit.spec.height * 1.08, unit.z);

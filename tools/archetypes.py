@@ -75,11 +75,10 @@ def dragon(positions):
     height = positions[:, 1].max()
     span = np.abs(positions[:, 0]).max()
 
-    # Which end is the head? The snout end is the narrower, taller one.
-    front = z_max if _mass_above(positions, z_max, 0.55 * height) >= \
-        _mass_above(positions, z_min, 0.55 * height) else z_min
-    sign = 1.0 if front == z_max else -1.0
-    back = z_min if sign > 0 else z_max
+    # Every scan in this set was captured facing +Z, so the head is at z_max.
+    # Sniffing for it from the silhouette got the hog rider's mount backwards.
+    sign = 1.0
+    back = z_min
 
     body_y = 0.44 * height
     chest_z = sign * 0.10 * abs(z_max - z_min)
@@ -128,10 +127,8 @@ def rider(positions):
     arm_y = float((edges[arm_band] + edges[arm_band + 1]) / 2)
     arm_span = float(widths[arm_band])
 
-    # The snout end of the mount: whichever end carries geometry low down.
-    front = z_max if _mass_below(positions, z_max, 0.35 * height) >= \
-        _mass_below(positions, z_min, 0.35 * height) else z_min
-    sign = 1.0 if front == z_max else -1.0
+    # As above: the mount faces +Z like every other scan here.
+    sign = 1.0
 
     joints = [
         ("Root", None, [0.0, 0.0, 0.0]),

@@ -32,12 +32,12 @@ REMOVE_PARTS = {
 # inside these cylinders are lifted out of the merged arena meshes into their
 # own nodes, so a destroyed tower can actually be hidden at runtime.
 TOWER_CUTS = [
-    ("blue-king", -13.3, -0.1, 2.6, 2.35, 6.2),
-    ("blue-left", -9.0, -4.2, 1.9, 2.35, 5.0),
-    ("blue-right", -9.0, 4.0, 1.9, 2.35, 5.0),
-    ("red-king", 15.2, -0.1, 2.6, 2.35, 6.2),
-    ("red-left", 10.7, -4.2, 1.9, 2.35, 5.0),
-    ("red-right", 10.7, 4.0, 1.9, 2.35, 5.0),
+    ("blue-king", -13.6, 0.15, 2.7, 2.35, 6.2),
+    ("blue-left", -9.15, -5.30, 1.7, 2.35, 5.0),
+    ("blue-right", -9.15, 5.25, 1.7, 2.35, 5.0),
+    ("red-king", 15.7, 0.15, 2.7, 2.35, 6.2),
+    ("red-left", 11.2, -5.30, 1.7, 2.35, 5.0),
+    ("red-right", 11.2, 5.20, 1.7, 2.35, 5.0),
 ]
 
 

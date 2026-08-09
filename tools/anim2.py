@@ -96,6 +96,15 @@ class Clip:
             out = np.tile(np.asarray(default, dtype=float), (frames, 1))
             if not keyed:
                 return out
+            # A channel written only in the middle keys must still start and
+            # end at the pose's default, otherwise it is held constant for the
+            # whole clip and the motion silently disappears.
+            first_time = self.keys[0][0]
+            last_time = self.keys[-1][0]
+            if keyed[0][0] > first_time:
+                keyed.insert(0, (first_time, default, keyed[0][2]))
+            if keyed[-1][0] < last_time:
+                keyed.append((last_time, default, "smooth"))
             for i, t in enumerate(times):
                 if t <= keyed[0][0]:
                     out[i] = keyed[0][1]
@@ -285,31 +294,39 @@ def biped_hit(reach=1.0, base=None):
 
 
 def biped_die(reach=1.0, base=None):
-    """Stagger, fall backwards, then sink through the ground."""
+    """Stagger, drop to the knees and slump. The view fades the body out, so
+    the clip never drives it through the floor -- sinking is what made the
+    legs vanish while the body still showed."""
     clip = Clip("Die", loop=False)
     clip.key(0.00, rest(base))
 
     stagger = rest(base, root_pos=(0, -0.04, 0))
-    side(stagger, "Spine", -18)
-    side(stagger, "Chest", -14)
-    side(stagger, "Head", -24)
-    sym(stagger, "UpperArm", forward=-10, out=22 * reach)
-    sym(stagger, "Thigh", forward=12)
+    side(stagger, "Spine", -14)
+    side(stagger, "Chest", -10)
+    side(stagger, "Head", -18)
+    sym(stagger, "UpperArm", forward=-10, out=20 * reach)
+    sym(stagger, "Thigh", forward=8)
     clip.key(0.22, stagger, "out")
 
-    fall = rest(base, root_pos=(0, -0.30, 0), root_scale=(1.0, 0.94, 1.0))
-    side(fall, "Hips", -72)
-    side(fall, "Spine", -24)
-    side(fall, "Chest", -12)
-    side(fall, "Head", -30)
-    sym(fall, "UpperArm", forward=-20, out=34 * reach)
-    sym(fall, "Thigh", forward=46, out=8)
-    sym(fall, "Shin", forward=-40)
-    clip.key(0.66, fall, "in")
+    kneel = rest(base, root_pos=(0, -0.16, 0), root_scale=(1.03, 0.94, 1.03))
+    side(kneel, "Hips", 26)
+    side(kneel, "Spine", 20)
+    side(kneel, "Chest", 14)
+    side(kneel, "Head", 22)
+    sym(kneel, "UpperArm", forward=18, out=16 * reach)
+    sym(kneel, "Thigh", forward=-46)
+    sym(kneel, "Shin", forward=64)
+    clip.key(0.60, kneel, "in")
 
-    gone = dict(fall)
-    gone["root_pos"] = (0, -1.15, 0)
-    clip.key(1.30, gone, "in")
+    slump = rest(base, root_pos=(0, -0.24, 0), root_scale=(1.05, 0.90, 1.05))
+    side(slump, "Hips", 36)
+    side(slump, "Spine", 30)
+    side(slump, "Chest", 20)
+    side(slump, "Head", 30)
+    sym(slump, "UpperArm", forward=26, out=10 * reach)
+    sym(slump, "Thigh", forward=-52)
+    sym(slump, "Shin", forward=70)
+    clip.key(1.10, slump, "out")
     return clip
 
 
@@ -466,19 +483,26 @@ def dragon_hit(base=None):
 
 
 def dragon_die(base=None):
+    """Wings fold, the dragon drops to the ground and goes limp."""
     clip = Clip("Die", loop=False)
     clip.key(0.00, rest(base))
-    limp = rest(base, root_pos=(0, -0.35, 0))
-    side(limp, "Chest", -20)
-    side(limp, "Neck", -30)
-    side(limp, "Head", -26)
-    sym(limp, "Wing", forward=10, out=-34)
-    sym(limp, "WingTip", out=-28)
-    side(limp, "Tail", 18)
-    clip.key(0.55, limp, "in")
-    gone = dict(limp)
-    gone["root_pos"] = (0, -1.2, 0)
-    clip.key(1.25, gone, "in")
+
+    falter = rest(base, root_pos=(0, 0.05, 0))
+    side(falter, "Chest", -14)
+    side(falter, "Neck", -22)
+    side(falter, "Head", -18)
+    sym(falter, "Wing", out=-10)
+    clip.key(0.24, falter, "out")
+
+    limp = rest(base, root_pos=(0, -0.30, 0), root_scale=(1.06, 0.88, 1.06))
+    side(limp, "Chest", 16)
+    side(limp, "Neck", 24)
+    side(limp, "Head", 20)
+    sym(limp, "Wing", forward=8, out=-30)
+    sym(limp, "WingTip", out=-26)
+    side(limp, "Tail", 14)
+    sym(limp, "Thigh", forward=-20)
+    clip.key(1.00, limp, "in")
     return clip
 
 
@@ -570,19 +594,28 @@ def rider_hit(base=None):
 
 
 def rider_die(base=None):
+    """The mount stumbles and drops; the rider slumps over its neck."""
     clip = Clip("Die", loop=False)
     clip.key(0.00, rest(base))
-    down = rest(base, root_pos=(0, -0.30, 0))
-    side(down, "Mount", -40)
-    side(down, "MountHead", 24)
-    side(down, "Spine", -30)
-    side(down, "Chest", -20)
-    side(down, "Head", -26)
-    sym(down, "UpperArm", forward=-14, out=26)
-    clip.key(0.55, down, "in")
-    gone = dict(down)
-    gone["root_pos"] = (0, -1.2, 0)
-    clip.key(1.25, gone, "in")
+
+    stumble = rest(base, root_pos=(0, -0.08, 0))
+    side(stumble, "Mount", 14)
+    side(stumble, "MountHead", -18)
+    side(stumble, "Spine", -12)
+    side(stumble, "Head", -14)
+    clip.key(0.26, stumble, "out")
+
+    down = rest(base, root_pos=(0, -0.22, 0), root_scale=(1.05, 0.88, 1.05))
+    side(down, "Mount", 22)
+    side(down, "MountHead", -26)
+    side(down, "MountTail", 16)
+    sym(down, "HoofF", forward=-40)
+    sym(down, "HoofB", forward=34)
+    side(down, "Spine", 26)
+    side(down, "Chest", 20)
+    side(down, "Head", 24)
+    sym(down, "UpperArm", forward=22, out=12)
+    clip.key(0.95, down, "in")
     return clip
 
 

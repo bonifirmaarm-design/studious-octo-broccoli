@@ -15,19 +15,23 @@ FIELD.zMid = (FIELD.zMin + FIELD.zMax) / 2;
 
 export const RIVER = { xMin: FIELD.xMid - 1.05, xMax: FIELD.xMid + 1.05 };
 
+// Bridges and towers are measured off the arena mesh, not guessed: the decks
+// span z -6.45..-4.54 and 4.16..6.07 and their walkway sits 0.3 m above the
+// grass, which is why units used to wade through them knee-deep.
 export const BRIDGES = [
-  { z: -4.3, halfWidth: 1.15 },
-  { z: 4.0, halfWidth: 1.15 },
+  { z: -5.50, halfWidth: 0.95 },
+  { z: 5.12, halfWidth: 0.95 },
 ];
+export const BRIDGE_Y = 2.63;
 
 // Towers. `lane` is which bridge a unit heading for it will use.
 export const TOWERS = [
-  { id: 'blue-king', team: 'blue', kind: 'king', x: -13.3, z: -0.1, hp: 4000, range: 7.0, damage: 130, hitEvery: 1.0 },
-  { id: 'blue-left', team: 'blue', kind: 'crown', x: -9.0, z: -4.2, hp: 2400, range: 7.5, damage: 95, hitEvery: 0.8 },
-  { id: 'blue-right', team: 'blue', kind: 'crown', x: -9.0, z: 4.0, hp: 2400, range: 7.5, damage: 95, hitEvery: 0.8 },
-  { id: 'red-king', team: 'red', kind: 'king', x: 15.2, z: -0.1, hp: 4000, range: 7.0, damage: 130, hitEvery: 1.0 },
-  { id: 'red-left', team: 'red', kind: 'crown', x: 10.7, z: -4.2, hp: 2400, range: 7.5, damage: 95, hitEvery: 0.8 },
-  { id: 'red-right', team: 'red', kind: 'crown', x: 10.7, z: 4.0, hp: 2400, range: 7.5, damage: 95, hitEvery: 0.8 },
+  { id: 'blue-king', team: 'blue', kind: 'king', x: -13.6, z: 0.15, hp: 4000, range: 7.0, damage: 130, hitEvery: 1.0 },
+  { id: 'blue-left', team: 'blue', kind: 'crown', x: -9.15, z: -5.30, hp: 2400, range: 7.5, damage: 95, hitEvery: 0.8 },
+  { id: 'blue-right', team: 'blue', kind: 'crown', x: -9.15, z: 5.25, hp: 2400, range: 7.5, damage: 95, hitEvery: 0.8 },
+  { id: 'red-king', team: 'red', kind: 'king', x: 15.7, z: 0.15, hp: 4000, range: 7.0, damage: 130, hitEvery: 1.0 },
+  { id: 'red-left', team: 'red', kind: 'crown', x: 11.2, z: -5.30, hp: 2400, range: 7.5, damage: 95, hitEvery: 0.8 },
+  { id: 'red-right', team: 'red', kind: 'crown', x: 11.2, z: 5.20, hp: 2400, range: 7.5, damage: 95, hitEvery: 0.8 },
 ];
 
 // Troops chip buildings more slowly than they shred each other, so a lone
@@ -44,9 +48,20 @@ export const TOWER_ARCHERS = { blue: 'archer_blue', red: 'archer_red' };
 // mesh (king tower 4.73, princess tower 3.75 in world units). The crew stands
 // on that floor, not on top of the crenellations.
 export const TOWER_CREW = {
-  king: { y: 4.73, height: 2.1 },
+  king: { y: 4.83, height: 2.1 },
   crown: { y: 3.75, height: 1.5 },
 };
+
+/** Height of the walkable surface, so units stand on the bridge, not in it. */
+export function groundHeight(x, z) {
+  const bridge = BRIDGES.find(b => Math.abs(z - b.z) <= b.halfWidth + 0.4);
+  if (!bridge) return FIELD.y;
+  const across = Math.abs(x - FIELD.xMid);
+  if (across > 2.6) return FIELD.y;
+  // Ramp on and off the deck instead of stepping up onto it.
+  const t = Math.min(1, Math.max(0, (2.6 - across) / 1.1));
+  return FIELD.y + (BRIDGE_Y - FIELD.y) * t;
+}
 
 export const MATCH = {
   duration: 180,           // three minutes of regular time
