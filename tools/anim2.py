@@ -633,9 +633,11 @@ def clip_set(archetype, reach=1.0, base=None, jump_height=1.5):
             "hit": lambda: biped_hit(reach, base),
             "die": lambda: biped_die(reach, base),
         }
-        if archetype == "mega":
-            clips["jump"] = lambda: mega_jump(jump_height, base)
-            clips["smash"] = lambda: mega_smash(base)
+        # Jump and Smash are ordinary biped clips, so any two-legged rig can
+        # use them -- the Trump Mega Knight was scanned in a T-pose and needs
+        # the plain biped skeleton while keeping the Mega Knight moveset.
+        clips["jump"] = lambda: mega_jump(jump_height, base)
+        clips["smash"] = lambda: mega_smash(base)
         return clips
     if archetype == "dragon":
         return {

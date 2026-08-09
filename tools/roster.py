@@ -22,7 +22,11 @@ ROSTER = {
     "mega_knight_trump": {
         "src": "9f357f87-80b9-4f04-bab5-b022fcc0f618",
         "label": "Мега-Найт Трамп",
-        "archetype": "mega",
+        # Scanned with its arms out at shoulder height, unlike the two Mega
+        # Knights, so it needs the plain biped skeleton. The Mega Knight
+        # moveset (jump, smash) still applies.
+        "archetype": "biped",
+        "reach": 0.7,
         "clips": ["idle", "walk", "attack", "hit", "die", "jump", "smash"],
         "height": 2.8,
     },
