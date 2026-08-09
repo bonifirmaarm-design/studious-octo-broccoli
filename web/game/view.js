@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
-import { FIELD, KING_MODELS, TOWER_RADIUS, UNITS } from './config.js';
+import { FIELD, KING_MODELS, TOWER_ARCHERS, TOWER_CREW, TOWER_RADIUS, UNITS } from './config.js';
 
 const loader = new GLTFLoader();
 const load = url => new Promise((res, rej) => loader.load(url, res, undefined, rej));
@@ -146,20 +146,25 @@ export class View {
   buildTowers(towers) {
     this.towerViews = new Map();
     for (const tower of towers) {
-      const group = new THREE.Group();
       const bar = this.makeBar(tower.kind === 'king' ? 2.6 : 2.0, tower.team);
       bar.position.set(tower.x, FIELD.y + (tower.kind === 'king' ? 4.6 : 3.4), tower.z);
       this.group.add(bar);
 
-      let king = null;
-      if (tower.kind === 'king' && this.prototypes.has(KING_MODELS[tower.team])) {
-        king = this.makeActor(KING_MODELS[tower.team], 2.1);
-        king.root.position.set(tower.x, FIELD.y + 2.6, tower.z + (tower.team === 'blue' ? 0.1 : -0.1));
-        king.root.rotation.y = tower.team === 'blue' ? Math.PI / 2 : -Math.PI / 2;
-        this.play(king, 'Idle');
+      // Every tower is manned the same way: a king inside the king tower, an
+      // archer inside each princess tower, standing on the measured floor.
+      const isKing = tower.kind === 'king';
+      const modelKey = isKing ? KING_MODELS[tower.team] : TOWER_ARCHERS[tower.team];
+      const stand = TOWER_CREW[tower.kind];
+      let crew = null;
+      if (this.prototypes.has(modelKey)) {
+        crew = this.makeActor(modelKey, stand.height);
+        crew.root.position.set(tower.x, stand.y, tower.z);
+        // Face down the lane, towards the middle of the arena.
+        crew.root.rotation.y = tower.team === 'blue' ? Math.PI / 2 : -Math.PI / 2;
+        crew.lastShotAt = -99;
+        this.play(crew, 'Idle');
       }
-      this.towerViews.set(tower.id, { bar, king, group });
-      void group;
+      this.towerViews.set(tower.id, { bar, crew });
     }
   }
 
@@ -170,12 +175,19 @@ export class View {
       this.setBar(view.bar, tower.hp / tower.maxHp);
       view.bar.visible = !tower.dead;
       view.bar.quaternion.copy(camera.quaternion);
-      if (view.king) {
-        view.king.root.visible = !tower.dead;
-        if (tower.dead && view.king.currentName !== 'Die') this.trigger(view.king, 'Die');
-        else if (!tower.dead && this.now - (tower.shotAt ?? -99) < 0.12) {
-          this.trigger(view.king, 'Shoot');
-        }
+
+      const crew = view.crew;
+      if (!crew) continue;
+      crew.root.visible = !tower.dead;
+      if (tower.dead) {
+        if (crew.currentName !== 'Die') this.trigger(crew, 'Die');
+      } else if (tower.shotAt > crew.lastShotAt) {
+        // Compare against the shot we last animated rather than a time window:
+        // at a low frame rate a fixed window drops most of the volleys.
+        crew.lastShotAt = tower.shotAt;
+        this.trigger(crew, 'Shoot', 1.4);
+      } else if (crew.current && !crew.current.isRunning()) {
+        this.play(crew, 'Idle', { fade: 0.2 });
       }
     }
   }
@@ -218,7 +230,11 @@ export class View {
       } else if (unit.state === 'attack') {
         const name = unit.spec.attackClip && actor.actions.has(unit.spec.attackClip)
           ? unit.spec.attackClip : clips.attack;
-        if (unit.attackAt !== undefined && this.now - unit.attackAt < 0.06) {
+        // Fire the swing once per actual hit. Comparing timestamps beats a
+        // time window: a slow frame would otherwise skip the animation while
+        // the damage still landed.
+        if (unit.attackAt !== undefined && unit.attackAt > (actor.lastAttackAt ?? -99)) {
+          actor.lastAttackAt = unit.attackAt;
           this.trigger(actor, name, Math.min(2.2, 1.1 / unit.spec.hitEvery));
         } else if (!actor.current || !actor.current.isRunning()) {
           this.play(actor, clips.idle);

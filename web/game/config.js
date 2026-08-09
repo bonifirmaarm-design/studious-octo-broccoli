@@ -36,8 +36,17 @@ export const BUILDING_DAMAGE_SCALE = 0.55;
 
 export const TOWER_RADIUS = { king: 1.8, crown: 1.35 };
 
-// Which model plays each team's king, and where he stands on his tower.
+// Which model plays each team's king, and who mans the princess towers.
 export const KING_MODELS = { blue: 'king_blue', red: 'king_red' };
+export const TOWER_ARCHERS = { blue: 'archer_blue', red: 'archer_red' };
+
+// Height of the floor inside each tower's battlements, measured off the arena
+// mesh (king tower 4.73, princess tower 3.75 in world units). The crew stands
+// on that floor, not on top of the crenellations.
+export const TOWER_CREW = {
+  king: { y: 4.73, height: 2.1 },
+  crown: { y: 3.75, height: 1.5 },
+};
 
 export const MATCH = {
   duration: 180,           // seconds of regular time
@@ -78,14 +87,17 @@ export const UNITS = {
     clips: { idle: 'Idle', walk: 'Walk', attack: 'Attack', hit: 'Hit', die: 'Die' },
   },
   archer: {
-    model: { blue: 'archer_blue', red: 'archer_blue' },
+    model: { blue: 'archer_blue', red: 'archer_red' },
     height: 1.6, hp: 300, damage: 110, hitEvery: 1.2, range: 6.5,
     speed: 2.0, radius: 0.45, targets: 'both', mass: 1,
     projectile: { speed: 14, color: 0xffd9a0 },
     clips: { idle: 'Idle', walk: 'Walk', attack: 'Shoot', hit: 'Hit', die: 'Die' },
   },
   princess: {
-    model: { blue: 'archer_red', red: 'archer_red' },
+    // Swapped on purpose: within one army the princess then reads as a
+    // different figure from the plain archer, while the team ring and health
+    // bar still say which side she is on.
+    model: { blue: 'archer_red', red: 'archer_blue' },
     height: 1.6, hp: 220, damage: 150, hitEvery: 2.0, range: 10.5,
     speed: 1.9, radius: 0.45, targets: 'both', mass: 1,
     splash: 1.2,
@@ -157,11 +169,25 @@ export function isWalkable(x, z, towers) {
   return true;
 }
 
-/** Where a team may deploy: its own half, never on water or on a tower. */
+/**
+ * Where a team may deploy: its own half, never on water or on a tower.
+ * As in the original, destroying an enemy princess tower opens up that lane
+ * on the far bank, right up to the fallen tower.
+ */
 export function canDeploy(team, x, z, towers) {
   if (!inField(x, z, 0.6)) return false;
   if (isWater(x, z)) return false;
-  const ownSide = team === 'blue' ? x < RIVER.xMin - 0.3 : x > RIVER.xMax + 0.3;
+
+  let ownSide = team === 'blue' ? x < RIVER.xMin - 0.3 : x > RIVER.xMax + 0.3;
+  if (!ownSide) {
+    const foe = team === 'blue' ? 'red' : 'blue';
+    for (const t of towers) {
+      if (t.team !== foe || t.kind !== 'crown' || !t.dead) continue;
+      const sameLane = (z < FIELD.zMid) === (t.z < FIELD.zMid);
+      const beforeTower = team === 'blue' ? x < t.x : x > t.x;
+      if (sameLane && beforeTower) { ownSide = true; break; }
+    }
+  }
   if (!ownSide) return false;
   for (const t of towers) {
     if (t.dead) continue;

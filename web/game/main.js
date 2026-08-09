@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { Battle, findCard } from './battle.js';
 import { Bot, CARD_SPECS } from './ai.js';
 import { CameraRig, VIEWS } from './camera.js';
-import { CARDS, FIELD, KING_MODELS, UNITS, canDeploy } from './config.js';
+import { CARDS, FIELD, KING_MODELS, TOWER_ARCHERS, UNITS, canDeploy } from './config.js';
 import { HUD } from './ui.js';
 import { View } from './view.js';
 
@@ -68,9 +68,12 @@ const view = new View(scene);
 const status = document.getElementById('loading');
 const bar = document.getElementById('loadbar');
 
+// Every model the match can show: card units, the kings on the king towers
+// and the archers standing on the princess towers.
 const modelKeys = [...new Set([
   ...CARDS.flatMap(c => Object.values(UNITS[c.unit].model)),
   ...Object.values(KING_MODELS),
+  ...Object.values(TOWER_ARCHERS),
 ])];
 
 status.textContent = 'Загрузка арены…';
