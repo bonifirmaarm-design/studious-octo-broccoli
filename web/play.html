@@ -45,9 +45,10 @@
   .tag { font-size: 10px; letter-spacing: 1px; padding: 2px 7px; border-radius: 5px; font-weight: 700; }
   .tag.blue { background: rgba(74,134,255,.25); color: #9dc0ff; }
   .tag.red { background: rgba(255,77,77,.25); color: #ffa8a8; }
-  #clock { font-variant-numeric: tabular-nums; font-size: 20px; font-weight: 600; min-width: 56px;
-    text-align: center; }
+  #clocks { min-width: 74px; text-align: center; }
+  #clock { font-variant-numeric: tabular-nums; font-size: 20px; font-weight: 600; }
   #clock.overtime { color: #ffd24a; }
+  #phase { font-size: 9px; letter-spacing: 1.4px; color: #ffd24a; height: 11px; font-weight: 700; }
 
   #bottombar { position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
     display: flex; align-items: flex-end; gap: 12px; }
@@ -87,6 +88,8 @@
   #elixir-pips i { border-right: 1px solid rgba(0,0,0,.35); }
   #elixir-value { position: absolute; right: 7px; top: 3px; font-weight: 700; font-size: 14px;
     text-shadow: 0 1px 3px rgba(0,0,0,.7); }
+  #elixir-x2 { position: absolute; left: 7px; top: 4px; font-weight: 800; font-size: 12px;
+    color: #ffe27a; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
 
   button { appearance: none; border: 1px solid var(--line); background: rgba(255,255,255,.07);
     color: var(--text); border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: 12px; }

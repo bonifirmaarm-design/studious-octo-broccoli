@@ -96,6 +96,10 @@ const battle = new Battle(playable, {
     if (event.type === 'towerDown') {
       hud.toast(event.tower.team === 'red' ? 'Башня противника разрушена!' : 'Наша башня пала!');
     }
+    if (event.type === 'kingWoke') {
+      hud.toast(event.tower.team === 'red' ? 'Королевская башня врага проснулась'
+                                           : 'Наша королевская башня проснулась');
+    }
     if (event.type === 'over') hud.showResult(event.winner, event.reason);
   },
 });

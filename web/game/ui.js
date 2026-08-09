@@ -16,7 +16,7 @@ export class HUD {
     this.root.innerHTML = `
       <div id="topbar">
         <div class="crowns" id="crowns-blue"><span class="tag blue">СИНИЙ</span><b>0</b></div>
-        <div id="clock">3:00</div>
+        <div id="clocks"><div id="clock">3:00</div><div id="phase"></div></div>
         <div class="crowns" id="crowns-red"><b>0</b><span class="tag red">КРАСНЫЙ</span></div>
       </div>
       <div id="bottombar">
@@ -29,6 +29,7 @@ export class HUD {
         <div id="elixir">
           <div id="elixir-fill"></div>
           <div id="elixir-pips"></div>
+          <span id="elixir-x2" hidden>×2</span>
           <span id="elixir-value">5</span>
         </div>
       </div>
@@ -39,6 +40,8 @@ export class HUD {
     this.elixirFill = this.root.querySelector('#elixir-fill');
     this.elixirValue = this.root.querySelector('#elixir-value');
     this.clock = this.root.querySelector('#clock');
+    this.phase = this.root.querySelector('#phase');
+    this.elixirX2 = this.root.querySelector('#elixir-x2');
     this.nextMini = this.root.querySelector('#next-mini');
     this.result = this.root.querySelector('#result');
 
@@ -96,12 +99,15 @@ export class HUD {
       node.classList.toggle('poor', card.cost > elixir);
     }
 
-    const left = Math.max(0, (battle.time < MATCH.duration ? MATCH.duration
-      : MATCH.duration + MATCH.overtime) - battle.time);
+    const overtime = battle.time >= MATCH.duration;
+    const left = Math.max(0, (overtime ? MATCH.duration + MATCH.overtime : MATCH.duration)
+      - battle.time);
     const minutes = Math.floor(left / 60);
     const seconds = Math.floor(left % 60).toString().padStart(2, '0');
     this.clock.textContent = `${minutes}:${seconds}`;
-    this.clock.classList.toggle('overtime', battle.time >= MATCH.duration);
+    this.clock.classList.toggle('overtime', overtime);
+    this.phase.textContent = overtime ? 'ДОП. ВРЕМЯ' : '';
+    this.elixirX2.hidden = battle.time < MATCH.doubleElixirAt;
 
     this.root.querySelector('#crowns-blue b').textContent = battle.crowns.blue;
     this.root.querySelector('#crowns-red b').textContent = battle.crowns.red;

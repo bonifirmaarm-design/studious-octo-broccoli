@@ -28,6 +28,19 @@ REMOVE_PARTS = {
     "MAPA3_mergedObject_Material_027_0",  # wicker baskets
 }
 
+# Tower footprints, in the same recentred metres the game uses. Triangles
+# inside these cylinders are lifted out of the merged arena meshes into their
+# own nodes, so a destroyed tower can actually be hidden at runtime.
+TOWER_CUTS = [
+    ("blue-king", -13.3, -0.1, 2.6, 2.35, 6.2),
+    ("blue-left", -9.0, -4.2, 1.9, 2.35, 5.0),
+    ("blue-right", -9.0, 4.0, 1.9, 2.35, 5.0),
+    ("red-king", 15.2, -0.1, 2.6, 2.35, 6.2),
+    ("red-left", 10.7, -4.2, 1.9, 2.35, 5.0),
+    ("red-right", 10.7, 4.0, 1.9, 2.35, 5.0),
+]
+
+
 # Only the MAPA1 group is the actual Royal Arena shell; MAPA2/MAPA3 are the
 # other two arenas stored in the same file. Set via --group.
 GROUPS = {
@@ -36,6 +49,20 @@ GROUPS = {
     "mapa3": "MAPA3_",
     "all": "",
 }
+
+
+def _add_part(glb, name, positions, indices, uvs, material):
+    """Add one mesh, dropping the vertices this triangle set does not use."""
+    used = np.unique(indices)
+    remap = np.full(len(positions), -1, dtype=np.int64)
+    remap[used] = np.arange(len(used))
+    local_positions = positions[used]
+    local_uvs = uvs[used] if uvs is not None else None
+    local_indices = remap[indices]
+    normals = compute_normals(local_positions.astype(np.float64), local_indices)
+    mesh = glb.add_mesh(name, local_positions, local_indices, normals=normals,
+                        uvs=local_uvs, material=material)
+    return glb.add_node(name, mesh=mesh)
 
 
 def build(out_path, group="all", remove=(), keep_only=None):
@@ -86,12 +113,44 @@ def build(out_path, group="all", remove=(), keep_only=None):
 
     root = glb.add_node("Arena", root=True)
     children = []
+    tower_pieces = {name: [] for name, *_ in TOWER_CUTS}
+
     for part in kept:
-        positions = part.positions - offset
-        normals = compute_normals(positions.astype(np.float64), part.indices)
-        mesh = glb.add_mesh(part.name, positions, part.indices, normals=normals,
-                            uvs=part.uvs, material=material_index(part.material))
-        children.append(glb.add_node(part.name, mesh=mesh))
+        positions = (part.positions - offset).astype(np.float32)
+        tris = part.indices.reshape(-1, 3)
+        centroids = positions[tris].mean(axis=1)
+
+        # Claim this part's triangles for whichever tower they sit inside.
+        owner = np.full(len(tris), -1, dtype=np.int64)
+        for i, (name, tx, tz, radius, y_lo, y_hi) in enumerate(TOWER_CUTS):
+            inside = ((centroids[:, 0] - tx) ** 2 + (centroids[:, 2] - tz) ** 2 < radius * radius)
+            inside &= (centroids[:, 1] > y_lo) & (centroids[:, 1] < y_hi) & (owner < 0)
+            owner[inside] = i
+
+        for i, (name, *_rest) in enumerate(TOWER_CUTS):
+            picked = tris[owner == i]
+            if len(picked) < 4:
+                continue
+            tower_pieces[name].append((positions, picked, part.uvs, part.material))
+
+        remaining = tris[owner < 0]
+        if len(remaining) == 0:
+            continue
+        children.append(_add_part(glb, part.name, positions, remaining.reshape(-1),
+                                  part.uvs, material_index(part.material)))
+
+    # One node per tower, named so the game can switch it off when it falls.
+    for name, pieces in tower_pieces.items():
+        if not pieces:
+            print(f"warning: no geometry captured for {name}")
+            continue
+        kids = [_add_part(glb, f"{name}#{k}", positions, picked.reshape(-1), uvs,
+                          material_index(material))
+                for k, (positions, picked, uvs, material) in enumerate(pieces)]
+        node = glb.add_node(f"Tower_{name}", children=kids)
+        children.append(node)
+        print(f"  {name}: {sum(len(p[1]) for p in pieces)} tris in its own node")
+
     glb.set_children(root, children)
 
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)

@@ -31,6 +31,7 @@ export class Tower {
   damage_(amount) {
     if (this.dead) return;
     this.hp -= amount;
+    this.wokeThisHit = !this.active;   // read by Battle to announce it once
     this.active = true;
     if (this.hp <= 0) { this.hp = 0; this.dead = true; }
   }
@@ -234,8 +235,9 @@ export class Battle {
         unit.stateTime = 0;
         unit.leap = null;
       } else {
-        unit.x = leap.fx + (leap.tx - leap.fx) * leap.t;
-        unit.z = leap.fz + (leap.tz - leap.fz) * leap.t;
+        const travel = Math.max(0, (leap.t - leap.liftOff) / (1 - leap.liftOff));
+        unit.x = leap.fx + (leap.tx - leap.fx) * travel;
+        unit.z = leap.fz + (leap.tz - leap.fz) * travel;
       }
       return;
     }
@@ -260,9 +262,12 @@ export class Battle {
       unit.state = 'leap';
       unit.stateTime = 0;
       unit.leapCooldown = leapSpec.cooldown;
+      // Timed against the Jump clip: it crouches until 0.48 s and lands at
+      // 1.28 s, so the body only travels over that stretch. The clip lifts the
+      // model itself, which is why no extra height is added here.
       unit.leap = {
         fx: unit.x, fz: unit.z, tx: target.x, tz: target.z,
-        t: 0, duration: 1.28, height: 3.4,
+        t: 0, duration: 1.28, liftOff: 0.48 / 1.28, height: 0,
       };
       unit.facing = Math.atan2(target.x - unit.x, target.z - unit.z);
       return;
@@ -324,10 +329,19 @@ export class Battle {
   hit(entity, damage) {
     if (!entity || entity.dead) return;
     entity.damage_(entity.isTower ? damage * BUILDING_DAMAGE_SCALE : damage);
+    if (entity.isTower && entity.wokeThisHit) {
+      entity.wokeThisHit = false;
+      if (entity.kind === 'king') this.onEvent({ type: 'kingWoke', tower: entity });
+    }
     if (entity.isTower) {
       if (entity.dead) {
         this.crowns[enemyOf(entity.team)] += entity.kind === 'king' ? 3 : 1;
-        for (const t of this.towers) if (t.team === entity.team && t.kind === 'king') t.active = true;
+        for (const t of this.towers) {
+          if (t.team === entity.team && t.kind === 'king' && !t.active) {
+            t.active = true;
+            this.onEvent({ type: 'kingWoke', tower: t });
+          }
+        }
         this.onEvent({ type: 'towerDown', tower: entity });
       }
     } else if (entity.dead) {

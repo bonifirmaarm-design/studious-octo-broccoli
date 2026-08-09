@@ -30,6 +30,12 @@ export class View {
     const gltf = await load(url);
     gltf.scene.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     this.scene.add(gltf.scene);
+    // tools/build_arena.py splits each tower out of the merged arena meshes
+    // into its own node, which is what lets a destroyed one be hidden.
+    this.towerNodes = new Map();
+    gltf.scene.traverse(o => {
+      if (o.name.startsWith('Tower_')) this.towerNodes.set(o.name.slice(6), o);
+    });
     return gltf.scene;
   }
 
@@ -83,6 +89,21 @@ export class View {
     action.clampWhenFinished = !loop;
     if (actor.current) actor.current.fadeOut(fade);
     action.fadeIn(fade).play();
+    actor.current = action;
+    actor.currentName = name;
+  }
+
+  /** One-shot clip started part-way in, for landing out of a fall. */
+  playFrom(actor, name, time, speed = 1) {
+    const action = actor.actions.get(name);
+    if (!action || actor.currentName === name) return;
+    action.reset();
+    action.setEffectiveTimeScale(speed);
+    action.setLoop(THREE.LoopOnce, 1);
+    action.clampWhenFinished = true;
+    if (actor.current && actor.current !== action) actor.current.fadeOut(0.06);
+    action.fadeIn(0.06).play();
+    action.time = time;
     actor.current = action;
     actor.currentName = name;
   }
@@ -164,7 +185,9 @@ export class View {
         crew.lastShotAt = -99;
         this.play(crew, 'Idle');
       }
-      this.towerViews.set(tower.id, { bar, crew });
+      this.towerViews.set(tower.id, {
+        bar, crew, node: this.towerNodes?.get(tower.id) || null, collapsed: false,
+      });
     }
   }
 
@@ -175,6 +198,13 @@ export class View {
       this.setBar(view.bar, tower.hp / tower.maxHp);
       view.bar.visible = !tower.dead;
       view.bar.quaternion.copy(camera.quaternion);
+
+      // A destroyed tower leaves the field, the way it does in the original.
+      if (tower.dead && !view.collapsed) {
+        view.collapsed = true;
+        if (view.node) view.node.visible = false;
+        this.rubble(tower);
+      }
 
       const crew = view.crew;
       if (!crew) continue;
@@ -190,6 +220,28 @@ export class View {
         this.play(crew, 'Idle', { fade: 0.2 });
       }
     }
+  }
+
+  /** Debris left where a tower stood. */
+  rubble(tower) {
+    const group = new THREE.Group();
+    const material = new THREE.MeshStandardMaterial({ color: 0x7d8492, roughness: 0.95 });
+    const size = tower.kind === 'king' ? 1.5 : 1.1;
+    for (let i = 0; i < 14; i++) {
+      const block = new THREE.Mesh(
+        new THREE.BoxGeometry(0.3 + Math.random() * 0.5, 0.25 + Math.random() * 0.4,
+                              0.3 + Math.random() * 0.5), material);
+      const angle = Math.random() * Math.PI * 2;
+      const radius = Math.random() * size;
+      block.position.set(Math.cos(angle) * radius, FIELD.y + 0.15 + Math.random() * 0.2,
+                         Math.sin(angle) * radius);
+      block.rotation.set(Math.random(), Math.random(), Math.random());
+      block.castShadow = true;
+      block.receiveShadow = true;
+      group.add(block);
+    }
+    group.position.set(tower.x, 0, tower.z);
+    this.group.add(group);
   }
 
   // --------------------------------------------------------------- units
@@ -225,7 +277,10 @@ export class View {
       const clips = unit.spec.clips;
       if (unit.dead) {
         this.play(actor, clips.die, { loop: false, fade: 0.1 });
-      } else if (unit.state === 'leap' || unit.state === 'jumpIn') {
+      } else if (unit.state === 'jumpIn') {
+        // Dropping in from the sky: skip the crouch and start at the fall.
+        this.playFrom(actor, clips.jump || clips.idle, 1.05);
+      } else if (unit.state === 'leap') {
         this.play(actor, clips.jump || clips.idle, { loop: false, fade: 0.08 });
       } else if (unit.state === 'attack') {
         const name = unit.spec.attackClip && actor.actions.has(unit.spec.attackClip)
@@ -242,7 +297,9 @@ export class View {
       } else if (unit.state === 'walk') {
         this.play(actor, clips.walk, { speed: Math.max(0.7, unit.speed / 2.0) });
       } else {
-        if (!actor.currentName || actor.currentName === clips.walk) this.play(actor, clips.idle);
+        // Unconditional: a clamped one-shot (the landing pose of a leap) would
+        // otherwise stay frozen on its last frame until the unit walked again.
+        this.play(actor, clips.idle);
       }
 
       // Damage flash.

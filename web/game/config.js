@@ -49,11 +49,11 @@ export const TOWER_CREW = {
 };
 
 export const MATCH = {
-  duration: 180,           // seconds of regular time
-  overtime: 60,
+  duration: 180,           // three minutes of regular time
+  overtime: 120,           // two more if the crowns are level
   elixirMax: 10,
   elixirPerSecond: 1 / 2.8,
-  doubleElixirAt: 120,
+  doubleElixirAt: 120,     // last minute of regular time onwards, overtime included
 };
 
 // ---------------------------------------------------------------------------
