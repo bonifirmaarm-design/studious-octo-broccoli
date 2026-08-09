@@ -283,23 +283,6 @@ export class View {
       actor.root.position.set(unit.x, y, unit.z);
       actor.root.rotation.y = unit.facing;
 
-      // Corpses fade out where they fell instead of sinking through the
-      // ground, which used to swallow the legs while the body still showed.
-      const fadeStart = 0.9, fadeEnd = 1.6;
-      const opacity = unit.dead
-        ? 1 - Math.min(1, Math.max(0, (unit.deathTime - fadeStart) / (fadeEnd - fadeStart)))
-        : 1;
-      if (opacity !== actor.opacity) {
-        actor.opacity = opacity;
-        actor.model.traverse(o => {
-          if (o.isMesh || o.isSkinnedMesh) {
-            o.material.transparent = opacity < 1;
-            o.material.opacity = opacity;
-            o.material.depthWrite = opacity > 0.6;
-          }
-        });
-      }
-
       const clips = unit.spec.clips;
       if (unit.dead) {
         this.play(actor, clips.die, { loop: false, fade: 0.1 });
